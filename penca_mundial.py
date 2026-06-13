@@ -179,27 +179,50 @@ def parse_event(ev):
 def poisson_pmf(k, lam):
     return math.exp(-lam) * lam**k / math.factorial(k)
 
-def outcome_probs(lh, la, n=MAX_GOLES):
+def _dc_tau(i, j, lh, la, rho):
+    """Factor de corrección Dixon-Coles para las 4 celdas de marcadores bajos.
+    Corrige el sesgo del Poisson independiente, que subestima 0-0 / 1-1 y
+    sobreestima 1-0 / 0-1 en partidos parejos. rho>0 sube los empates bajos."""
+    if i == 0 and j == 0:
+        return 1.0 - lh * la * rho
+    if i == 0 and j == 1:
+        return 1.0 + lh * rho
+    if i == 1 and j == 0:
+        return 1.0 + la * rho
+    if i == 1 and j == 1:
+        return 1.0 - rho
+    return 1.0
+
+def outcome_probs(lh, la, rho=0.0, n=MAX_GOLES):
     ph = [poisson_pmf(i, lh) for i in range(n + 1)]
     pa = [poisson_pmf(j, la) for j in range(n + 1)]
     M  = np.outer(ph, pa)
+    if rho:
+        for i in range(min(2, n + 1)):
+            for j in range(min(2, n + 1)):
+                M[i, j] *= _dc_tau(i, j, lh, la, rho)
+        M = np.clip(M, 0.0, None)   # tau puede dar negativos con rho extremos
     M /= M.sum()
     return np.tril(M, -1).sum(), np.trace(M), np.triu(M, 1).sum(), M
 
 def fit_lambdas(pH, pD, pA, total):
+    """Ajusta (lambda_local, lambda_visitante, rho) para reproducir las
+    probabilidades 1X2 del mercado. rho es la corrección Dixon-Coles."""
     def loss(x):
-        lh, la = x
-        qH, qD, qA, _ = outcome_probs(lh, la, n=10)
+        lh, la, rho = x
+        qH, qD, qA, _ = outcome_probs(lh, la, rho=rho, n=10)
         err = (qH - pH)**2 + (qD - pD)**2 + (qA - pA)**2
         if total:
             err += 0.15 * ((lh + la) - total)**2
         return err
     best, bestval = None, 1e9
-    for x0 in [(1.3, 1.1), (1.8, 0.8), (0.8, 1.8), (1.0, 1.0), (2.2, 0.6)]:
-        res = minimize(loss, x0, method="L-BFGS-B", bounds=[(0.05, 5.0), (0.05, 5.0)])
+    bounds = [(0.05, 5.0), (0.05, 5.0), (-0.2, 0.2)]
+    for x0 in [(1.3, 1.1, 0.0), (1.8, 0.8, 0.0), (0.8, 1.8, 0.0),
+               (1.0, 1.0, 0.05), (2.2, 0.6, 0.0)]:
+        res = minimize(loss, x0, method="L-BFGS-B", bounds=bounds)
         if res.fun < bestval:
             bestval, best = res.fun, res.x
-    return float(best[0]), float(best[1])
+    return float(best[0]), float(best[1]), float(best[2])
 
 def _sign(x): return (x > 0) - (x < 0)
 
@@ -227,8 +250,8 @@ def puntos_esperados(pi, pj, M):
     return ep
 
 def predict(pH, pD, pA, total):
-    lh, la = fit_lambdas(pH, pD, pA, total)
-    _, _, _, M = outcome_probs(lh, la)
+    lh, la, rho = fit_lambdas(pH, pD, pA, total)
+    _, _, _, M = outcome_probs(lh, la, rho=rho)
     mi, mj = np.unravel_index(np.argmax(M), M.shape)
     best, bestEP = (int(mi), int(mj)), -1.0
     n = M.shape[0]
@@ -238,7 +261,7 @@ def predict(pH, pD, pA, total):
             if ep > bestEP:
                 bestEP, best = ep, (pi, pj)
     gi, gj = best
-    return int(gi), int(gj), float(M[gi, gj]), float(bestEP), int(mi), int(mj), lh, la
+    return int(gi), int(gj), float(M[gi, gj]), float(bestEP), int(mi), int(mj), lh, la, rho
 
 # ----------------------------------------------------------------------------
 # 6) LÍNEAS A JUGAR Y EXPORTAR
@@ -267,8 +290,8 @@ def build_rows(events):
         if not parsed:
             continue
         home, away, pH, pD, pA, total = parsed
-        gh, ga, p_exact, ep, mi, mj, lh, la = predict(pH, pD, pA, total)
-        _, _, _, M = outcome_probs(lh, la)
+        gh, ga, p_exact, ep, mi, mj, lh, la, rho = predict(pH, pD, pA, total)
+        _, _, _, M = outcome_probs(lh, la, rho=rho)
         ui, uj = underdog_pick(M, pH, pA)
         rows.append({
             "kickoff": when, "kickoff_raw": ko,
