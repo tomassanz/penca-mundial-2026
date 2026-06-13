@@ -4,3 +4,4 @@ __pycache__/
 .env
 odds_theoddsapi_raw.json
 _tmp_rows.json
+odds_team_totals_raw.json

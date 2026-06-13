@@ -36,7 +36,8 @@ import datetime as dt
 
 import requests
 import numpy as np
-from scipy.optimize import minimize
+from scipy.optimize import minimize, brentq
+from scipy.stats import poisson
 
 # ----------------------------------------------------------------------------
 # CONFIGURACIÓN
@@ -129,6 +130,81 @@ def get_events(force_refresh=False):
     with open(RAW_CACHE, "w", encoding="utf-8") as f:
         json.dump(data, f)
     return data
+
+# Cache de los mercados por-evento (team_totals = goles esperados de CADA equipo,
+# btts = ambos marcan). Son más precisos que estimar los goles desde el 1X2,
+# pero cuestan créditos extra (un request por partido), así que se cachean.
+TT_CACHE = "odds_team_totals_raw.json"
+
+def get_event_markets(event_id, force_refresh=False):
+    """Baja team_totals + btts de UN partido. Devuelve el dict del evento o None.
+    Cachea por event_id para no re-gastar créditos."""
+    cache = {}
+    if os.path.exists(TT_CACHE):
+        with open(TT_CACHE, encoding="utf-8") as f:
+            cache = json.load(f)
+    if event_id in cache and not force_refresh:
+        return cache[event_id]
+    try:
+        r = requests.get(
+            f"{API_BASE}/sports/{SPORT_KEY}/events/{event_id}/odds",
+            params={"apiKey": API_KEY, "regions": REGIONS,
+                    "markets": "team_totals,btts", "oddsFormat": "decimal"},
+            timeout=30,
+        )
+        r.raise_for_status()
+    except requests.HTTPError:
+        return None
+    data = r.json()
+    cache[event_id] = data
+    with open(TT_CACHE, "w", encoding="utf-8") as f:
+        json.dump(cache, f)
+    return data
+
+def _lambda_from_over(line, p_over):
+    """Dada una línea de goles (0.5, 1.5, …) y P(Over), despeja el lambda
+    (goles esperados) que reproduce esa probabilidad bajo Poisson."""
+    k = math.floor(line)  # Over k.5  <=>  meter >= k+1
+    try:
+        return brentq(lambda L: (1.0 - poisson.cdf(k, L)) - p_over, 0.01, 7.0)
+    except Exception:
+        return None
+
+def lambdas_from_market(event_id, home, away):
+    """Devuelve (lh, la, btts) con los goles esperados de cada equipo tomados
+    DIRECTO del mercado team_totals (promediando casas), o (None, None, btts)
+    si el partido no tiene ese mercado."""
+    d = get_event_markets(event_id)
+    if not d:
+        return None, None, None
+    lh_list, la_list, btts_list = [], [], []
+    for bk in d.get("bookmakers", []):
+        markets = {m["key"]: m for m in bk.get("markets", [])}
+        tt = markets.get("team_totals")
+        if tt:
+            for team, acc in ((home, lh_list), (away, la_list)):
+                ov = next((o for o in tt["outcomes"]
+                           if o["name"] == "Over" and o.get("description") == team), None)
+                un = next((o for o in tt["outcomes"]
+                           if o["name"] == "Under" and o.get("description") == team), None)
+                if ov and un and ov.get("point") is not None:
+                    p = devig([ov["price"], un["price"]])
+                    if p:
+                        lam = _lambda_from_over(ov["point"], p[0])
+                        if lam:
+                            acc.append(lam)
+        bt = markets.get("btts")
+        if bt:
+            yes = next((o for o in bt["outcomes"] if o["name"] == "Yes"), None)
+            no  = next((o for o in bt["outcomes"] if o["name"] == "No"), None)
+            if yes and no:
+                p = devig([yes["price"], no["price"]])
+                if p:
+                    btts_list.append(p[0])
+    lh = float(np.mean(lh_list)) if lh_list else None
+    la = float(np.mean(la_list)) if la_list else None
+    btts = float(np.mean(btts_list)) if btts_list else None
+    return lh, la, btts
 
 # ----------------------------------------------------------------------------
 # 2-3) QUITAR MARGEN Y PROMEDIAR ENTRE CASAS
@@ -224,6 +300,17 @@ def fit_lambdas(pH, pD, pA, total):
             bestval, best = res.fun, res.x
     return float(best[0]), float(best[1]), float(best[2])
 
+def fit_rho(lh, la, pD):
+    """Con los lambdas FIJOS (vienen del mercado team_totals), ajusta solo rho
+    (Dixon-Coles) para que la prob. de empate del modelo iguale la del 1X2."""
+    if pD is None:
+        return 0.0
+    def loss(rho):
+        _, qD, _, _ = outcome_probs(lh, la, rho=rho[0], n=10)
+        return (qD - pD) ** 2
+    res = minimize(loss, [0.0], method="L-BFGS-B", bounds=[(-0.2, 0.2)])
+    return float(res.x[0])
+
 def _sign(x): return (x > 0) - (x < 0)
 
 def _puntos(pi, pj, ai, aj):
@@ -249,8 +336,15 @@ def puntos_esperados(pi, pj, M):
                 ep += p * _puntos(pi, pj, ai, aj)
     return ep
 
-def predict(pH, pD, pA, total):
-    lh, la, rho = fit_lambdas(pH, pD, pA, total)
+def predict(pH, pD, pA, total, mkt_lh=None, mkt_la=None):
+    """Si mkt_lh/mkt_la vienen del mercado (team_totals), se usan como goles
+    esperados de cada equipo y se ajusta solo rho al empate del 1X2. Si no,
+    se estiman los lambdas desde el 1X2 + total (método de respaldo)."""
+    if mkt_lh is not None and mkt_la is not None:
+        lh, la = mkt_lh, mkt_la
+        rho = fit_rho(lh, la, pD)
+    else:
+        lh, la, rho = fit_lambdas(pH, pD, pA, total)
     _, _, _, M = outcome_probs(lh, la, rho=rho)
     mi, mj = np.unravel_index(np.argmax(M), M.shape)
     best, bestEP = (int(mi), int(mj)), -1.0
@@ -274,10 +368,11 @@ def underdog_pick(M, pH, pA):
     i, j = np.unravel_index(np.argmax(sub), sub.shape)
     return int(i), int(j)
 
-def build_rows(events):
+def build_rows(events, use_team_totals=True):
     desde = dt.date.fromisoformat(DESDE)
     hasta = dt.date.fromisoformat(HASTA)
     rows = []
+    n_mkt = n_est = 0
     for ev in events:
         ko = ev.get("commence_time", "")
         try:
@@ -290,7 +385,17 @@ def build_rows(events):
         if not parsed:
             continue
         home, away, pH, pD, pA, total = parsed
-        gh, ga, p_exact, ep, mi, mj, lh, la, rho = predict(pH, pD, pA, total)
+        # Goles esperados POR EQUIPO directo del mercado (más preciso); si el
+        # partido no tiene team_totals, se cae a estimarlos desde el 1X2.
+        mkt_lh = mkt_la = None
+        if use_team_totals:
+            mkt_lh, mkt_la, _ = lambdas_from_market(ev.get("id"), home, away)
+        if mkt_lh is not None and mkt_la is not None:
+            n_mkt += 1
+        else:
+            n_est += 1
+        gh, ga, p_exact, ep, mi, mj, lh, la, rho = predict(
+            pH, pD, pA, total, mkt_lh=mkt_lh, mkt_la=mkt_la)
         _, _, _, M = outcome_probs(lh, la, rho=rho)
         ui, uj = underdog_pick(M, pH, pA)
         rows.append({
@@ -302,6 +407,8 @@ def build_rows(events):
             "pH": pH, "pD": pD, "pA": pA,
         })
     rows.sort(key=lambda r: r["kickoff_raw"])
+    if use_team_totals:
+        print(f"  goles por equipo: {n_mkt} del mercado (team_totals), {n_est} estimados del 1X2")
     return rows
 
 def make_line(rows, k):
