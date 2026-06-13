@@ -1,0 +1,73 @@
+Fecha/Hora (UTC),Local,Visitante,Pronostico,Jugada,Pts esperados,P(marcador exacto) %,P(Local) %,P(Empate) %,P(Visit) %
+2026-06-11T19:00:00Z,Mexico,South Africa,1-0,Segura,3.10,17,68,21,11
+2026-06-12T02:00:00Z,South Korea,Czech Republic,0-1,Batacazo,1.79,12,36,31,33
+2026-06-12T19:00:00Z,Canada,Bosnia & Herzegovina,1-0,Segura,2.54,15,53,26,21
+2026-06-13T01:00:00Z,USA,Paraguay,1-0,Segura,2.36,14,48,28,24
+2026-06-13T19:00:00Z,Qatar,Switzerland,0-2,Segura,3.34,17,7,14,79
+2026-06-13T22:00:00Z,Brazil,Morocco,1-0,Segura,2.74,15,59,25,16
+2026-06-14T01:00:00Z,Haiti,Scotland,0-1,Segura,2.92,15,14,21,65
+2026-06-14T04:00:00Z,Australia,Turkey,0-1,Segura,2.56,14,19,26,54
+2026-06-14T17:00:00Z,Germany,Curaçao,3-0,Segura,3.56,13,93,5,2
+2026-06-14T20:00:00Z,Netherlands,Japan,1-0,Segura,2.33,12,49,26,25
+2026-06-14T23:00:00Z,Ivory Coast,Ecuador,0-1,Segura,2.26,18,25,34,41
+2026-06-15T02:00:00Z,Sweden,Tunisia,1-0,Segura,2.41,14,49,28,23
+2026-06-15T16:00:00Z,Spain,Cape Verde,2-0,Segura,3.53,14,89,8,3
+2026-06-15T19:00:00Z,Belgium,Egypt,1-0,Segura,2.67,14,58,24,18
+2026-06-15T22:00:00Z,Saudi Arabia,Uruguay,0-1,Segura,2.95,15,13,22,66
+2026-06-16T01:00:00Z,Iran,New Zealand,1-0,Segura,2.45,14,50,28,22
+2026-06-16T19:00:00Z,France,Senegal,1-0,Segura,2.99,15,67,21,12
+2026-06-16T22:00:00Z,Iraq,Norway,0-2,Segura,3.34,16,7,14,80
+2026-06-17T01:00:00Z,Argentina,Algeria,1-0,Segura,3.07,16,69,21,10
+2026-06-17T04:00:00Z,Austria,Jordan,1-0,Segura,3.08,13,73,17,10
+2026-06-17T17:00:00Z,Portugal,DR Congo,2-0,Segura,3.20,16,76,16,8
+2026-06-17T20:00:00Z,England,Croatia,1-0,Segura,2.63,15,56,25,19
+2026-06-17T23:00:00Z,Ghana,Panama,1-0,Segura,2.30,14,47,27,26
+2026-06-18T02:00:00Z,Uzbekistan,Colombia,0-1,Segura,3.05,16,11,21,69
+2026-06-18T16:00:00Z,Czech Republic,South Africa,1-0,Segura,2.37,14,48,29,24
+2026-06-18T19:00:00Z,Switzerland,Bosnia & Herzegovina,1-0,Segura,2.77,15,60,24,16
+2026-06-18T22:00:00Z,Canada,Qatar,1-0,Segura,3.18,16,72,18,10
+2026-06-19T01:00:00Z,Mexico,South Korea,1-0,Segura,2.52,15,52,27,21
+2026-06-19T19:00:00Z,USA,Australia,1-0,Segura,2.57,14,54,25,21
+2026-06-19T22:00:00Z,Scotland,Morocco,0-1,Segura,2.38,14,23,29,48
+2026-06-20T01:00:00Z,Brazil,Haiti,3-0,Segura,3.52,14,90,8,3
+2026-06-20T03:00:00Z,Turkey,Paraguay,0-1,Batacazo,1.51,13,43,30,27
+2026-06-20T17:00:00Z,Netherlands,Sweden,1-0,Segura,2.68,14,58,24,18
+2026-06-20T20:00:00Z,Germany,Ivory Coast,1-0,Segura,2.78,13,62,22,16
+2026-06-21T00:00:00Z,Ecuador,Curaçao,2-0,Segura,3.29,17,77,15,8
+2026-06-21T04:00:00Z,Tunisia,Japan,0-1,Segura,2.58,15,19,27,53
+2026-06-21T16:00:00Z,Spain,Saudi Arabia,2-0,Segura,3.51,15,87,10,4
+2026-06-21T19:00:00Z,Belgium,Iran,1-0,Segura,3.01,15,68,20,13
+2026-06-21T22:00:00Z,Uruguay,Cape Verde,1-0,Segura,2.96,15,66,21,13
+2026-06-22T01:00:00Z,New Zealand,Egypt,0-1,Segura,2.65,15,19,25,56
+2026-06-22T17:00:00Z,Argentina,Austria,1-0,Segura,2.68,14,58,25,17
+2026-06-22T21:00:00Z,France,Iraq,2-0,Segura,3.42,15,84,12,4
+2026-06-23T00:00:00Z,Norway,Senegal,0-1,Batacazo,1.45,12,45,27,28
+2026-06-23T03:00:00Z,Jordan,Algeria,0-1,Segura,2.76,14,16,23,60
+2026-06-23T17:00:00Z,Portugal,Uzbekistan,2-0,Segura,3.13,13,77,16,8
+2026-06-23T20:00:00Z,England,Ghana,1-0,Segura,3.10,14,73,17,10
+2026-06-23T23:00:00Z,Panama,Croatia,0-1,Segura,2.92,15,13,23,64
+2026-06-24T02:00:00Z,Colombia,DR Congo,1-0,Segura,3.01,17,65,23,12
+2026-06-24T19:00:00Z,Bosnia & Herzegovina,Qatar,1-0,Segura,2.76,15,60,24,16
+2026-06-24T19:00:00Z,Switzerland,Canada,1-0,Segura,2.19,13,44,29,27
+2026-06-24T22:00:00Z,Scotland,Brazil,0-1,Segura,2.97,15,13,20,67
+2026-06-24T22:00:00Z,Morocco,Haiti,2-0,Segura,3.25,16,77,15,8
+2026-06-25T01:00:00Z,Czech Republic,Mexico,0-1,Segura,2.56,15,21,26,53
+2026-06-25T01:00:00Z,South Africa,South Korea,0-1,Segura,2.41,14,23,28,49
+2026-06-25T20:00:00Z,Curaçao,Ivory Coast,0-1,Segura,3.03,14,12,17,71
+2026-06-25T20:00:00Z,Ecuador,Germany,0-1,Segura,2.61,14,19,24,57
+2026-06-25T23:00:00Z,Japan,Sweden,1-0,Segura,2.27,14,46,28,26
+2026-06-25T23:00:00Z,Tunisia,Netherlands,0-1,Segura,2.83,14,15,22,63
+2026-06-26T02:00:00Z,Paraguay,Australia,1-0,Segura,2.20,14,43,30,27
+2026-06-26T02:00:00Z,Turkey,USA,1-0,Batacazo,1.78,11,35,28,37
+2026-06-26T19:00:00Z,Norway,France,0-1,Segura,2.46,13,22,26,52
+2026-06-26T19:00:00Z,Senegal,Iraq,1-0,Segura,2.95,15,66,21,13
+2026-06-27T00:00:00Z,Cape Verde,Saudi Arabia,0-1,Batacazo,1.74,13,39,28,34
+2026-06-27T00:00:00Z,Uruguay,Spain,0-1,Segura,2.66,14,18,24,58
+2026-06-27T03:00:00Z,New Zealand,Belgium,0-1,Segura,3.03,14,11,18,71
+2026-06-27T03:00:00Z,Egypt,Iran,1-0,Segura,2.21,16,41,32,27
+2026-06-27T21:00:00Z,Croatia,Ghana,1-0,Segura,2.65,15,55,26,19
+2026-06-27T21:00:00Z,Panama,England,0-1,Segura,2.97,13,16,14,70
+2026-06-27T23:30:00Z,Colombia,Portugal,1-0,Batacazo,1.51,13,28,29,43
+2026-06-27T23:30:00Z,DR Congo,Uzbekistan,0-1,Batacazo,1.62,13,41,28,31
+2026-06-28T02:00:00Z,Algeria,Austria,1-0,Batacazo,1.58,13,28,31,41
+2026-06-28T02:00:00Z,Jordan,Argentina,0-2,Segura,3.23,15,8,14,78
