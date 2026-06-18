@@ -62,6 +62,21 @@ BOOKMAKERS = ["pinnacle", "betfair_ex_eu", "betfair_ex_uk", "onexbet"]
 DESDE = "2026-06-11"       # inclusive
 HASTA = "2026-06-29"       # exclusive (cubre hasta el 28, último día de grupos)
 
+# Estrategia para elegir el marcador de la línea segura:
+#   "realista" (default) -> el marcador EXACTO más probable (moda del modelo).
+#                           Da variedad real (empates, "ambos marcan", goleadas)
+#                           y maximiza la chance de clavar el exacto (8 pts).
+#   "ep"                  -> el de máximos puntos esperados (8/5/3). Es el óptimo
+#                           "de pizarrón", pero colapsa casi todo a 1-0 / 2-0 y
+#                           NUNCA pronostica empates (un empate jamás cobra los 5
+#                           por diferencia), así que la planilla queda monótona.
+# Se puede cambiar acá o por línea de comandos con  --ep  /  --realista.
+ESTRATEGIA = "realista"
+
+# Margen para la regla "no empates tibios": si la moda da empate pero el favorito
+# le saca al empate más de este margen en probabilidad, se juega al favorito.
+MARGEN_FAVORITO = 0.20
+
 MAX_GOLES = 8
 OUT_CSV  = "predicciones.csv"
 OUT_HTML = "predicciones.html"
@@ -336,25 +351,55 @@ def puntos_esperados(pi, pj, M):
                 ep += p * _puntos(pi, pj, ai, aj)
     return ep
 
-def predict(pH, pD, pA, total, mkt_lh=None, mkt_la=None):
-    """Si mkt_lh/mkt_la vienen del mercado (team_totals), se usan como goles
-    esperados de cada equipo y se ajusta solo rho al empate del 1X2. Si no,
-    se estiman los lambdas desde el 1X2 + total (método de respaldo)."""
-    if mkt_lh is not None and mkt_la is not None:
-        lh, la = mkt_lh, mkt_la
-        rho = fit_rho(lh, la, pD)
-    else:
-        lh, la, rho = fit_lambdas(pH, pD, pA, total)
-    _, _, _, M = outcome_probs(lh, la, rho=rho)
-    mi, mj = np.unravel_index(np.argmax(M), M.shape)
-    best, bestEP = (int(mi), int(mj)), -1.0
+def ep_pick(M):
+    """Marcador de MÁXIMOS PUNTOS ESPERADOS (8/5/3)."""
+    best, bestEP = (0, 0), -1.0
     n = M.shape[0]
     for pi in range(n):
         for pj in range(n):
             ep = puntos_esperados(pi, pj, M)
             if ep > bestEP:
                 bestEP, best = ep, (pi, pj)
-    gi, gj = best
+    return int(best[0]), int(best[1])
+
+def realista_pick(M, pH, pD, pA, margen=MARGEN_FAVORITO):
+    """Marcador EXACTO más probable (moda de la matriz de marcadores).
+
+    Da variedad realista —empates y "ambos marcan" cuando el partido lo pide—
+    en vez de colapsar todo a 1-0 como hace la maximización de puntos esperados.
+    Una salvaguarda: si la moda cae en un empate PERO hay un favorito claro (su
+    probabilidad de ganar supera la del empate por `margen`), se juega el
+    marcador más probable del lado del favorito, para no pronosticar empates
+    tibios en partidos que en realidad tienen dueño."""
+    mi, mj = np.unravel_index(np.argmax(M), M.shape)
+    mi, mj = int(mi), int(mj)
+    if mi == mj and max(pH, pA) - pD >= margen:
+        sub = np.tril(M, -1) if pH >= pA else np.triu(M, 1)
+        mi, mj = np.unravel_index(np.argmax(sub), sub.shape)
+        mi, mj = int(mi), int(mj)
+    return mi, mj
+
+def predict(pH, pD, pA, total, mkt_lh=None, mkt_la=None, estrategia=None):
+    """Si mkt_lh/mkt_la vienen del mercado (team_totals), se usan como goles
+    esperados de cada equipo y se ajusta solo rho al empate del 1X2. Si no,
+    se estiman los lambdas desde el 1X2 + total (método de respaldo).
+
+    `estrategia` decide el marcador de la línea segura: "realista" (moda, default)
+    o "ep" (máximos puntos esperados). Ver ESTRATEGIA arriba."""
+    if estrategia is None:
+        estrategia = ESTRATEGIA
+    if mkt_lh is not None and mkt_la is not None:
+        lh, la = mkt_lh, mkt_la
+        rho = fit_rho(lh, la, pD)
+    else:
+        lh, la, rho = fit_lambdas(pH, pD, pA, total)
+    _, _, _, M = outcome_probs(lh, la, rho=rho)
+    mi, mj = np.unravel_index(np.argmax(M), M.shape)   # moda (más probable)
+    if estrategia == "ep":
+        gi, gj = ep_pick(M)
+    else:
+        gi, gj = realista_pick(M, pH, pD, pA)
+    bestEP = puntos_esperados(gi, gj, M)
     return int(gi), int(gj), float(M[gi, gj]), float(bestEP), int(mi), int(mj), lh, la, rho
 
 # ----------------------------------------------------------------------------
@@ -537,8 +582,15 @@ def parse_k(argv):
     return 0
 
 def main():
+    global ESTRATEGIA
     if "--sports" in sys.argv:
         list_sports(); return
+
+    if "--ep" in sys.argv:
+        ESTRATEGIA = "ep"
+    elif "--realista" in sys.argv:
+        ESTRATEGIA = "realista"
+    print(f"  estrategia de marcador: {ESTRATEGIA}")
 
     k = parse_k(sys.argv)
     force = "--refresh" in sys.argv

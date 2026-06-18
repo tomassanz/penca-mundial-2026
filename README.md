@@ -1,15 +1,40 @@
 # Penca Mundial 2026 — Pronósticos por cuotas
 
-Genera tus pronósticos para la Penca a partir de las **cuotas reales de las mejores casas de apuestas**, eligiendo el marcador que **maximiza los puntos esperados** (sistema 8/5/3). Incluye una segunda línea de **riesgo** para jugar con dos cuentas y maximizar la chance de ganar pools grandes.
+Genera tus pronósticos para la Penca a partir de las **cuotas reales de las mejores casas de apuestas**, eligiendo el **marcador exacto más probable** de cada partido (sistema 8/5/3). Incluye una segunda línea de **riesgo** para jugar con dos cuentas y maximizar la chance de ganar pools grandes.
+
+## Estrategia de marcador (importante)
+
+Hay dos formas de elegir el marcador, y se controla con `ESTRATEGIA` (o por línea de comandos):
+
+- **`realista` (default)** — el **marcador exacto más probable** según el modelo. Da una planilla variada y con cara de fútbol de verdad: aparecen empates, partidos con *ambos marcan* y goleadas, no solo 1-0 / 2-0. Maximiza la chance de clavar el exacto (los 8 puntos).
+- **`ep`** — el de **máximos puntos esperados**. Es el óptimo "de pizarrón", pero como un empate nunca cobra los 5 por diferencia, **colapsa casi todo a 1-0 / 2-0 y jamás pronostica empates**: la planilla queda monótona. Útil si querés el piso de puntos más alto y no te importa la variedad.
+
+```bash
+python3 penca_mundial.py            # realista (default)
+python3 penca_mundial.py --ep       # máximos puntos esperados
+```
 
 ## Archivos
 
 - `penca_mundial.py` — baja cuotas, calcula los pronósticos y exporta CSV + checklist HTML.
+- `regenerar_realista.py` — reescribe las planillas en modo realista **sin bajar cuotas** (usa el 1X2 ya guardado en `predicciones.csv`). Sirve para corregir rápido sin red ni API.
+- `puntos.py` — calcula cuántos puntos llevamos: compara la planilla contra `resultados.csv`.
+- `resultados.csv` — plantilla con todos los partidos para ir cargando los goles reales.
 - `simulador_penca.py` — simula miles de Mundiales para decidir cuánto arriesgar según el tamaño del pool.
+
+## ¿Cuántos puntos vamos?
+
+Cargá los goles reales en `resultados.csv` y corré:
+```bash
+python3 puntos.py                      # toda la planilla cargada hasta ahora
+python3 puntos.py --fecha 1            # solo la Fecha 1
+python3 puntos.py predicciones_riesgo.csv resultados.csv   # la cuenta B
+```
+Te imprime partido por partido (pronóstico vs real), el desglose 8/5/3/0 y el total.
 
 ## Qué hace (en una línea)
 
-Cuotas 1X2 + Over/Under → les quita el margen de la casa → ajusta un modelo de Poisson → calcula la probabilidad de cada marcador → elige el que más puntos rinde.
+Cuotas 1X2 + Over/Under → les quita el margen de la casa → ajusta un modelo de Poisson (con corrección Dixon-Coles) → calcula la probabilidad de cada marcador → elige el más probable (modo `realista`) o el de máximos puntos esperados (modo `ep`).
 
 ---
 
