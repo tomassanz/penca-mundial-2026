@@ -63,18 +63,19 @@ DESDE = "2026-06-11"       # inclusive
 HASTA = "2026-06-29"       # exclusive (cubre hasta el 28, último día de grupos)
 
 # Estrategia para elegir el marcador de la línea segura:
-#   "realista" (default) -> el marcador EXACTO más probable (moda del modelo).
-#                           Da variedad real (empates, "ambos marcan", goleadas)
-#                           y maximiza la chance de clavar el exacto (8 pts).
-#   "ep"                  -> el de máximos puntos esperados (8/5/3). Es el óptimo
-#                           "de pizarrón", pero colapsa casi todo a 1-0 / 2-0 y
-#                           NUNCA pronostica empates (un empate jamás cobra los 5
-#                           por diferencia), así que la planilla queda monótona.
-# Se puede cambiar acá o por línea de comandos con  --ep  /  --realista.
-ESTRATEGIA = "realista"
+#   "seguro" (default) -> el marcador más probable DEL FAVORITO (nunca empate).
+#                         Mantiene el piso de la línea segura (siempre banca al
+#                         favorito) pero varía el marcador según su fuerza
+#                         (1-0, 2-0, 2-1, 3-0...) en vez de colapsar todo a 1-0.
+#   "ep"               -> máximos puntos esperados (8/5/3). El óptimo "de pizarrón",
+#                         pero colapsa casi todo a 1-0 / 2-0: planilla monótona.
+#   "realista"         -> la moda de la matriz; puede pronosticar empates cuando
+#                         son lo más probable. Más variado pero menos "seguro".
+# Se cambia acá o por línea de comandos:  --seguro / --ep / --realista.
+ESTRATEGIA = "seguro"
 
-# Margen para la regla "no empates tibios": si la moda da empate pero el favorito
-# le saca al empate más de este margen en probabilidad, se juega al favorito.
+# Margen para la regla "no empates tibios" de la estrategia "realista": si la moda
+# da empate pero el favorito le saca al empate más de este margen, juega al favorito.
 MARGEN_FAVORITO = 0.20
 
 MAX_GOLES = 8
@@ -362,15 +363,25 @@ def ep_pick(M):
                 bestEP, best = ep, (pi, pj)
     return int(best[0]), int(best[1])
 
+def seguro_pick(M, pH, pA):
+    """Marcador más probable del lado del FAVORITO (nunca empate).
+
+    Es la línea SEGURA pero corregida: mantiene el piso —siempre banca al
+    favorito, así casi siempre se lleva el 3 del ganador y pelea el 5 de la
+    diferencia— pero en vez de colapsar SIEMPRE a 1-0, elige el marcador más
+    probable según la fuerza del favorito (1-0, 2-0, 2-1, 3-0...). Da una
+    planilla variada sin resignar el piso de puntos."""
+    sub = np.tril(M, -1) if pH >= pA else np.triu(M, 1)
+    i, j = np.unravel_index(np.argmax(sub), sub.shape)
+    return int(i), int(j)
+
 def realista_pick(M, pH, pD, pA, margen=MARGEN_FAVORITO):
     """Marcador EXACTO más probable (moda de la matriz de marcadores).
 
-    Da variedad realista —empates y "ambos marcan" cuando el partido lo pide—
-    en vez de colapsar todo a 1-0 como hace la maximización de puntos esperados.
-    Una salvaguarda: si la moda cae en un empate PERO hay un favorito claro (su
-    probabilidad de ganar supera la del empate por `margen`), se juega el
-    marcador más probable del lado del favorito, para no pronosticar empates
-    tibios en partidos que en realidad tienen dueño."""
+    Da variedad realista —incluso empates y "ambos marcan" cuando el partido lo
+    pide—. A diferencia de `seguro`, acá SÍ puede pronosticar empates (cuando son
+    lo más probable), salvo que haya un favorito claro (su prob. de ganar supera
+    la del empate por `margen`), en cuyo caso se juega al favorito."""
     mi, mj = np.unravel_index(np.argmax(M), M.shape)
     mi, mj = int(mi), int(mj)
     if mi == mj and max(pH, pA) - pD >= margen:
@@ -384,8 +395,10 @@ def predict(pH, pD, pA, total, mkt_lh=None, mkt_la=None, estrategia=None):
     esperados de cada equipo y se ajusta solo rho al empate del 1X2. Si no,
     se estiman los lambdas desde el 1X2 + total (método de respaldo).
 
-    `estrategia` decide el marcador de la línea segura: "realista" (moda, default)
-    o "ep" (máximos puntos esperados). Ver ESTRATEGIA arriba."""
+    `estrategia` decide el marcador de la línea segura:
+      "seguro"   (default) -> marcador más probable del favorito (variado, sin empates)
+      "ep"                 -> máximos puntos esperados (colapsa a 1-0)
+      "realista"           -> moda de la matriz (puede dar empates). Ver ESTRATEGIA."""
     if estrategia is None:
         estrategia = ESTRATEGIA
     if mkt_lh is not None and mkt_la is not None:
@@ -397,8 +410,10 @@ def predict(pH, pD, pA, total, mkt_lh=None, mkt_la=None, estrategia=None):
     mi, mj = np.unravel_index(np.argmax(M), M.shape)   # moda (más probable)
     if estrategia == "ep":
         gi, gj = ep_pick(M)
-    else:
+    elif estrategia == "realista":
         gi, gj = realista_pick(M, pH, pD, pA)
+    else:
+        gi, gj = seguro_pick(M, pH, pA)
     bestEP = puntos_esperados(gi, gj, M)
     return int(gi), int(gj), float(M[gi, gj]), float(bestEP), int(mi), int(mj), lh, la, rho
 
@@ -590,6 +605,8 @@ def main():
         ESTRATEGIA = "ep"
     elif "--realista" in sys.argv:
         ESTRATEGIA = "realista"
+    elif "--seguro" in sys.argv:
+        ESTRATEGIA = "seguro"
     print(f"  estrategia de marcador: {ESTRATEGIA}")
 
     k = parse_k(sys.argv)

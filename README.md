@@ -1,23 +1,25 @@
 # Penca Mundial 2026 — Pronósticos por cuotas
 
-Genera tus pronósticos para la Penca a partir de las **cuotas reales de las mejores casas de apuestas**, eligiendo el **marcador exacto más probable** de cada partido (sistema 8/5/3). Incluye una segunda línea de **riesgo** para jugar con dos cuentas y maximizar la chance de ganar pools grandes.
+Genera tus pronósticos para la Penca a partir de las **cuotas reales de las mejores casas de apuestas** (sistema 8/5/3). Incluye una segunda línea de **riesgo** para jugar con dos cuentas y maximizar la chance de ganar pools grandes.
 
 ## Estrategia de marcador (importante)
 
-Hay dos formas de elegir el marcador, y se controla con `ESTRATEGIA` (o por línea de comandos):
+Se controla con `ESTRATEGIA` (o por línea de comandos):
 
-- **`realista` (default)** — el **marcador exacto más probable** según el modelo. Da una planilla variada y con cara de fútbol de verdad: aparecen empates, partidos con *ambos marcan* y goleadas, no solo 1-0 / 2-0. Maximiza la chance de clavar el exacto (los 8 puntos).
-- **`ep`** — el de **máximos puntos esperados**. Es el óptimo "de pizarrón", pero como un empate nunca cobra los 5 por diferencia, **colapsa casi todo a 1-0 / 2-0 y jamás pronostica empates**: la planilla queda monótona. Útil si querés el piso de puntos más alto y no te importa la variedad.
+- **`seguro` (default)** — el **marcador más probable del favorito** (nunca empate). Mantiene el piso de la línea segura —siempre banca al favorito, así casi siempre cobra el 3 del ganador y pelea el 5 de la diferencia— pero **varía el marcador según la fuerza del favorito** (1-0, 2-0, 2-1, 3-0...) en vez de colapsar todo a 1-0. En el backtest de la Fecha 1 sacó *más* puntos que la línea de máximos puntos.
+- **`ep`** — **máximos puntos esperados**. El óptimo "de pizarrón", pero **colapsa casi todo a 1-0 / 2-0**: planilla monótona.
+- **`realista`** — la **moda de la matriz**; puede pronosticar empates cuando son lo más probable. La más variada, pero menos "segura" (resigna piso al jugar empates).
 
 ```bash
-python3 penca_mundial.py            # realista (default)
+python3 penca_mundial.py            # seguro (default)
 python3 penca_mundial.py --ep       # máximos puntos esperados
+python3 penca_mundial.py --realista # incluye empates
 ```
 
 ## Archivos
 
 - `penca_mundial.py` — baja cuotas, calcula los pronósticos y exporta CSV + checklist HTML.
-- `regenerar_realista.py` — reescribe las planillas en modo realista **sin bajar cuotas** (usa el 1X2 ya guardado en `predicciones.csv`). Sirve para corregir rápido sin red ni API.
+- `regenerar.py` — reescribe las planillas en modo `seguro` **sin bajar cuotas** (usa el 1X2 ya guardado en `predicciones.csv`). Sirve para corregir rápido sin red ni API.
 - `puntos.py` — calcula cuántos puntos llevamos: compara la planilla contra `resultados.csv`.
 - `resultados.csv` — plantilla con todos los partidos para ir cargando los goles reales.
 - `simulador_penca.py` — simula miles de Mundiales para decidir cuánto arriesgar según el tamaño del pool.
@@ -34,7 +36,7 @@ Te imprime partido por partido (pronóstico vs real), el desglose 8/5/3/0 y el t
 
 ## Qué hace (en una línea)
 
-Cuotas 1X2 + Over/Under → les quita el margen de la casa → ajusta un modelo de Poisson (con corrección Dixon-Coles) → calcula la probabilidad de cada marcador → elige el más probable (modo `realista`) o el de máximos puntos esperados (modo `ep`).
+Cuotas 1X2 + Over/Under → les quita el margen de la casa → ajusta un modelo de Poisson (con corrección Dixon-Coles) → calcula la probabilidad de cada marcador → elige el más probable del favorito (modo `seguro`), el de máximos puntos esperados (modo `ep`) o la moda con empates (modo `realista`).
 
 ---
 

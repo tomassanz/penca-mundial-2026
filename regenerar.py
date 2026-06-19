@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-regenerar_realista.py
-=====================
+regenerar.py
+============
 Reescribe predicciones.csv / .html (y la línea de riesgo) con la estrategia
-REALISTA —el marcador EXACTO más probable— a partir de las probabilidades 1X2
-que ya están guardadas en predicciones.csv. No usa numpy/scipy ni red: sirve
-para corregir las planillas sin volver a bajar cuotas.
+SEGURA-VARIADA —el marcador más probable DEL FAVORITO— a partir de las
+probabilidades 1X2 que ya están guardadas en predicciones.csv. No usa
+numpy/scipy ni red: sirve para corregir las planillas sin volver a bajar cuotas.
 
 Por qué existe: la línea original maximizaba puntos esperados (8/5/3) y eso
-colapsa casi todo a 1-0 / 2-0 y nunca pronostica empates. Esta versión sigue la
-forma real de cada partido, así aparecen empates, "ambos marcan" y goleadas.
+colapsa casi todo a 1-0 / 2-0. Esta versión mantiene el piso de la segura
+(siempre banca al favorito, sin empates arriesgados) pero varía el marcador
+según la fuerza del favorito: 1-0, 2-0, 2-1, 3-0... Da una planilla con cara
+de fútbol de verdad sin resignar puntos (de hecho, en el backtest de la Fecha 1
+sacó más puntos que la original).
 
 OJO: el VOLUMEN de goles se estima desde el 1X2 con un anclaje (sin el mercado
-de totales, que necesita bajar cuotas). El ganador/empate sale del 1X2 guardado,
-que es lo que más manda. Para la versión fina, re-corré penca_mundial.py (que ya
-viene en modo realista) cuando tengas red + API.
+de totales, que necesita bajar cuotas). El ganador sale del 1X2 guardado, que es
+lo que más manda. Para la versión fina, re-corré penca_mundial.py (ya viene en
+modo "seguro") cuando tengas red + API.
 
-Uso:  python3 regenerar_realista.py
+Uso:  python3 regenerar.py
 """
 import csv
 import math
@@ -25,9 +28,8 @@ import html
 import datetime as dt
 
 N = 8                       # goles 0..N
-ANCHOR_BASE = 2.7           # goles totales esperados en un partido parejo
-ANCHOR_SPREAD = 1.7         # cuánto suben los goles según lo desparejo del 1X2
-MARGEN_FAVORITO = 0.20      # no pronosticar empates tibios si hay favorito claro
+ANCHOR_BASE = 2.4           # goles totales esperados en un partido parejo
+ANCHOR_SPREAD = 1.6         # cuánto suben los goles según lo desparejo del 1X2
 
 ES = {
     "South Africa": "Sudáfrica", "South Korea": "Corea del Sur",
@@ -113,18 +115,16 @@ def mode(M):
                 bv, best = M[i][j], (i, j)
     return best
 
-def realista_pick(M, pH, pD, pA):
-    mi, mj = mode(M)
-    if mi == mj and max(pH, pA) - pD >= MARGEN_FAVORITO:
-        # favorito claro: jugar su marcador más probable, no el empate
-        best, bv = (mi, mj), -1.0
-        for i in range(N + 1):
-            for j in range(N + 1):
-                gana = (i > j) if pH >= pA else (j > i)
-                if gana and M[i][j] > bv:
-                    bv, best = M[i][j], (i, j)
-        mi, mj = best
-    return mi, mj
+def seguro_pick(M, pH, pA):
+    """Marcador más probable DEL FAVORITO (nunca empate): banca siempre al
+    favorito (mantiene el piso) pero elige el marcador según su fuerza."""
+    best, bv = (0, 0), -1.0
+    for i in range(N + 1):
+        for j in range(N + 1):
+            gana = (i > j) if pH >= pA else (j > i)
+            if gana and M[i][j] > bv:
+                bv, best = M[i][j], (i, j)
+    return best
 
 def underdog_pick(M, pH, pA):
     """Marcador más probable del lado del underdog (línea de batacazo)."""
@@ -147,7 +147,7 @@ def load():
             tot = ANCHOR_BASE + ANCHOR_SPREAD * abs(pH - pA)
             lh, la, rho = fit(pH, pD, pA, tot)
             M = matrix(lh, la, rho)
-            gi, gj = realista_pick(M, pH, pD, pA)
+            gi, gj = seguro_pick(M, pH, pA)
             ui, uj = underdog_pick(M, pH, pA)
             rows.append({
                 "raw": r["Fecha/Hora (UTC)"], "home": r["Local"], "away": r["Visitante"],
@@ -273,19 +273,19 @@ def riesgo_flips():
     return flips
 
 def main():
-    print("Regenerando planillas con estrategia REALISTA (desde el 1X2 guardado)…")
+    print("Regenerando planillas con estrategia SEGURA-VARIADA (desde el 1X2 guardado)…")
     rows = load()
     from collections import Counter
     dist = Counter(f"{r['safe'][0]}-{r['safe'][1]}" for r in rows)
     write_csv(rows, "predicciones.csv", flips=set())
     write_html(rows, "predicciones.html",
-               "Cuenta A — REALISTA: marcador exacto más probable. "
+               "Cuenta A — SEGURA (variada): marcador más probable del favorito. "
                "Fase de grupos · cuotas casas sharp.", "penca_segura_", flips=set())
     flips = riesgo_flips()
     if flips:
         write_csv(rows, "predicciones_riesgo.csv", flips=flips)
         write_html(rows, "predicciones_riesgo.html",
-                   f"Cuenta B — RIESGO: realista + {len(flips)} batacazos. "
+                   f"Cuenta B — RIESGO: segura + {len(flips)} batacazos. "
                    "Fase de grupos · cuotas casas sharp.", "penca_riesgo_", flips=flips)
     print("\nDistribución de marcadores (línea segura):")
     for k, v in dist.most_common():
