@@ -77,7 +77,9 @@ def cruce(atk, dfn, A, B):
         mi, mj = max(gana, key=lambda ij: M[ij[0]][ij[1]])
     return (mi, mj), (h, d, a), M[mi][mj]
 
-CRUCES = [
+# Cruces REALES (los que se van confirmando ronda a ronda con los equipos que
+# efectivamente pasaron). Los 16avos ya se jugaron; octavos confirmados.
+CRUCES_16 = [
     ("South Africa","Canada"),("Brazil","Japan"),("Germany","Paraguay"),
     ("Netherlands","Morocco"),("Ivory Coast","Norway"),("France","Sweden"),
     ("Mexico","Ecuador"),("England","DR Congo"),("Belgium","Senegal"),
@@ -85,30 +87,37 @@ CRUCES = [
     ("Switzerland","Algeria"),("Australia","Egypt"),("Argentina","Cape Verde"),
     ("Colombia","Ghana"),
 ]
+CRUCES_8 = [   # octavos de final confirmados
+    ("Paraguay","France"),("Canada","Morocco"),("Brazil","Norway"),
+    ("Mexico","England"),("Portugal","Spain"),("USA","Belgium"),
+    ("Argentina","Egypt"),("Switzerland","Colombia"),
+]
 
 matches = fit_lambdas_grupos()
 atk, dfn, H = ajustar_ratings(matches)
 
-print(f"{'CRUCE (16avos)':<34}{'90min':<8}{'1X2 (T1/X/T2)':<16}{'PASA'}")
-print("-"*74)
-res=[]
-for A,B in CRUCES:
-    (mi,mj),(h,d,a),pe = cruce(atk,dfn,A,B)
-    pasa = A if h>=a else B
-    nota = "  (parejo→penales)" if abs(h-a)<0.08 else ""
-    print(f"{R.es(A)+' vs '+R.es(B):<34}{f'{mi}-{mj}':<8}{int(h*100):>2}/{int(d*100):>2}/{int(a*100):<8} {R.es(pasa)}{nota}")
-    res.append((A,B,mi,mj,h,d,a,pasa,pe))
+def simular_ronda(cruces, titulo, out_csv):
+    print(f"\n{'CRUCE ('+titulo+')':<34}{'90min':<8}{'1X2 (T1/X/T2)':<16}{'PASA'}")
+    print("-"*74)
+    res=[]
+    for A,B in cruces:
+        (mi,mj),(h,d,a),pe = cruce(atk,dfn,A,B)
+        pasa = A if h>=a else B
+        nota = "  (parejo→penales)" if abs(h-a)<0.08 else ""
+        print(f"{R.es(A)+' vs '+R.es(B):<34}{f'{mi}-{mj}':<8}{int(h*100):>2}/{int(d*100):>2}/{int(a*100):<8} {R.es(pasa)}{nota}")
+        res.append((A,B,mi,mj,h,d,a,pasa,pe))
+    with open(out_csv,"w",newline="",encoding="utf-8") as f:
+        w=csv.writer(f); w.writerow(["Cruce","Pronostico 90'","P(T1)%","P(X)%","P(T2)%","P(exacto)%","Pasa"])
+        for A,B,mi,mj,h,d,a,pasa,pe in res:
+            w.writerow([f"{A} vs {B}",f"{mi}-{mj}",f"{h*100:.0f}",f"{d*100:.0f}",f"{a*100:.0f}",f"{pe*100:.0f}",pasa])
+    print(f"  -> {out_csv}")
+    from collections import Counter
+    print("  Distribución:", dict(Counter(f"{r[2]}-{r[3]}" for r in res).most_common()))
+    return res
 
-with open("predicciones_16avos.csv","w",newline="",encoding="utf-8") as f:
-    w=csv.writer(f); w.writerow(["Cruce","Pronostico 90'","P(T1)%","P(X)%","P(T2)%","P(exacto)%","Pasa (a octavos)"])
-    for A,B,mi,mj,h,d,a,pasa,pe in res:
-        w.writerow([f"{A} vs {B}",f"{mi}-{mj}",f"{h*100:.0f}",f"{d*100:.0f}",f"{a*100:.0f}",f"{pe*100:.0f}",pasa])
-print("\n  -> predicciones_16avos.csv")
-
-from collections import Counter
-dist=Counter(f"{mi}-{mj}" for _,_,mi,mj,*_ in res)
-print("Distribución:", dict(dist.most_common()))
-
-print("\nTop 8 por fuerza (atk+def, más alto = mejor):")
-for t in sorted(atk, key=lambda t: atk[t]+dfn[t], reverse=True)[:8]:
-    print(f"  {R.es(t):<16} atk {atk[t]:+.2f}  def {dfn[t]:+.2f}")
+if __name__ == "__main__":
+    simular_ronda(CRUCES_16, "16avos", "predicciones_16avos.csv")
+    simular_ronda(CRUCES_8,  "octavos", "predicciones_octavos.csv")
+    print("\nTop 8 por fuerza (atk+def, más alto = mejor):")
+    for t in sorted(atk, key=lambda t: atk[t]+dfn[t], reverse=True)[:8]:
+        print(f"  {R.es(t):<16} atk {atk[t]:+.2f}  def {dfn[t]:+.2f}")
