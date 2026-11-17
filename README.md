@@ -94,3 +94,4 @@ y volvés a correr. Sirve igual para los cruces de eliminatoria: cuando las casa
 | `SPORT_KEY` | el torneo (`soccer_fifa_world_cup`) |
 | `BOOKMAKERS` / `REGIONS` | qué casas promediar |
 | `DESDE` / `HASTA` | ventana de fechas a generar |
+<!-- prueba claude-remoto -->
